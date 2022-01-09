@@ -1,0 +1,112 @@
+void setup() {
+  Serial.begin(9600);
+  int i;
+  for(i=2;i<12;i++){
+    pinMode(i, OUTPUT);
+  }
+}
+
+int LEDArv = 8;
+int LED[8] = {2, 3, 4, 5, 6, 7, 8, 9};        //Digitaalviigud LEDide jaoks
+int num = LEDArv, PWM = 0;                      //num on 8, sest on 8 LED-i ning et näiteks num-4 ei annaks -4
+                                  //lubab tasemete vahetumisel jätkata sealt kohast, kus vahetus toimus
+
+///////////////// 
+//Prototüübid
+
+void ringle(int);
+int PWM_Level();
+
+/////////////////
+//Funktsioonid
+
+void ringle(int kiirus){
+  int i;
+
+   if(num >= 100){                //Vältida üleliigset num muutuja suurenemist
+      num = (num % LEDArv) + LEDArv;
+   }
+
+  if(!kiirus){
+    for(i=2;i<(2 + LEDArv);i++){
+      digitalWrite(i, LOW);
+      delay(10);
+    }
+  }else if((kiirus >= 1) && (kiirus <=3)){
+      num++;
+      digitalWrite(LED[num % LEDArv], HIGH);
+      digitalWrite(LED[(num-1) % LEDArv], LOW);          //LED saba on 1 LED
+      digitalWrite(LED[(num-2) % LEDArv], LOW);          //ülejäänud on selleks, et vältida kõrgemate tasemete
+      digitalWrite(LED[(num-3) % LEDArv], LOW);          //saba mahajäämist
+      digitalWrite(LED[(num-4) % LEDArv], LOW);
+      delay(800 / (kiirus * 2));
+  }else if((kiirus >= 4) && (kiirus <=6)){
+      num++;
+      digitalWrite(LED[num % LEDArv], HIGH);
+      digitalWrite(LED[(num-2) % LEDArv], LOW);          //LED saba on 2 LED-i pikk
+      digitalWrite(LED[(num-3) % LEDArv], LOW);
+      digitalWrite(LED[(num-4) % LEDArv], LOW);
+      delay(800 / (kiirus * 2));
+  }else if((kiirus >= 7) && (kiirus <=9)){
+      num++;
+      digitalWrite(LED[num % LEDArv], HIGH);
+      digitalWrite(LED[(num-3) % LEDArv], LOW);          //LED saba on 3 LED-i pikk
+      digitalWrite(LED[(num-4) % LEDArv], LOW);
+      delay(800 / (kiirus * 2));
+  }else{
+      for(i=2;i<(2 + LEDArv);i++){
+        digitalWrite(i, HIGH);                      //Kõik tuled sees näitab, et pinge on maksimaalsel tasemel
+        delay(10);
+      }
+  }
+}
+
+int PWM_Level()
+{
+  static char sisestus[10];
+  static unsigned int positsioon = 0;
+  unsigned int sis = 0;
+  
+  Serial.print("Sisesta PWMi tase 0 ja 255 vahel \n");
+  char inByte = Serial.read();
+  if((inByte != '\n') && (positsioon < 9))
+  {
+    sisestus[positsioon] = inByte;
+    positsioon++;
+  }
+  else
+  {
+    sisestus[positsioon] = '\0';
+    Serial.println(sisestus);
+    positsioon = 0;
+  }
+  
+  sis = atoi(sisestus);
+  if(sis < 0)
+  {
+    sis = 0;
+  }
+  else if(sis > 255)
+  {
+    sis = 255;
+  }
+  return sis;
+}
+
+/////////////////
+
+void loop() {
+  //PWM DAC-iga juhtimine
+  while(Serial.available() > 0)
+  {
+    PWM = PWM_Level();
+    analogWrite(11, PWM);
+    delay(200);                 //Veidi aega pinge muutumiseks
+  }
+  analogWrite(11, PWM);
+
+  //Peamine osa
+  int pinge = analogRead(0), kiirus;              //ADC väärtus, max saadi 984
+  kiirus = map(pinge, 0, 1023, 0, 10);            //map-itakse 0-1023 väärtusteks 0-10
+  ringle(kiirus);
+}
